@@ -152,3 +152,8 @@ const logout = async (req, res) => {
     });
   }
 };
+
+
+module.exports = {
+  sendOTP, verifyOTP, logout
+}
