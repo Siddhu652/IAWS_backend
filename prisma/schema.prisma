@@ -50,6 +50,57 @@ enum TripStatus {
   ABNORMAL_OUT
 }
 
+
+//GROUP MODULE(ZONE, WARD, VEHICLE_TYPE, VEHICLE_CATEGORY)
+model Group {
+  id              Int      @id @default(autoincrement())
+  name            String
+  organization_id  Int
+
+  organization     Organization @relation(fields: [organization_id], references: [id])
+  subgroups       SubGroup[]
+
+  @@unique([name, organization_id])
+}
+model SubGroup {
+  id       Int @id @default(autoincrement())
+  name     String
+  group_id Int
+  organization_id Int
+
+  group    Group @relation(fields: [group_id], references: [id])
+  organization  Organization @relation(fields: [organization_id], references: [id])
+  vehicles  VehicleGroup[]
+
+  @@unique([name, group_id])
+}
+
+
+//ORGANIZATION MODULE
+model Organization{
+  id                Int         @id @default(autoincrement())
+  name              String      @unique
+  gps_enabled       Boolean     @default(false)
+  sector            SectorType
+  profile_pic       String?
+  created_at        DateTime
+
+  users UserOrganization[]
+  vehicles VehicleOrganization[]
+
+  sites     Site[]
+  groups  Group[]
+  sub_groups  SubGroup[]
+  devices   Devices[]
+  mega_trips MegaTrip[]
+  micro_trips MicroTrip[]
+}
+
+
+
+
+
+//USER MODULE
 model User{
   id          Int         @id @default(autoincrement())
   username    String      @unique
@@ -60,8 +111,11 @@ model User{
 
   Organizations  UserOrganization[]
   sites         UserSite[]
-  created_at   DateTime    @default(now())
+  user_reports      UserReport[]
 
+
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @updatedAt  @default(now())
 }
 
 model OtpVerification {
@@ -72,25 +126,6 @@ model OtpVerification {
   expires_at DateTime
 }
 
-model Organization{
-  id                Int         @id @default(autoincrement())
-  name              String      @unique
-  gps_enabled       Boolean     @default(false)
-  corp_aws_type     AwsType
-  sector            SectorType
-  location_source   LocationSource
-  profile_pic       String?
-  created_at        DateTime
-
-  users UserOrganization[]
-  vehicles VehicleOrganization[]
-
-  sites     Site[]
-  zone_groups  Group[]
-  devices   Devices[]
- mega_trips MegaTrip[]
-  micro_trips MicroTrip[]
-}
 
 model UserOrganization {
   id                 Int         @id @default(autoincrement())
@@ -104,29 +139,6 @@ model UserOrganization {
 }
 
 
-model Site {
-  id                Int    @id @default(autoincrement())
-  name              String
-  site_aws_type     AwsType
-  concept           AwsConcept
-  location          String?
-  weighment_place   String?
-  ftp_image_prefix  String?
-
-  organization_id    Int
-  organization       Organization @relation(fields: [organization_id], references: [id])
-
-  users    UserSite[]
-  other_details   SiteMetaData?
-  images   SiteImage[]
-  config   SiteConfigFile?
-  mega_trips MegaTrip[]
-  micro_trips MicroTrip[]
-  devices   Devices[]
-  @@unique([name, organization_id])
-}
-
-
 model UserSite {
   id                Int       @id @default(autoincrement())
   user_id           Int
@@ -136,6 +148,44 @@ model UserSite {
   site              Site      @relation(fields: [site_id], references: [id])
 
   @@unique([user_id, site_id])
+}
+
+
+
+//SITE MODULE
+model Site {
+  id                Int    @id @default(autoincrement())
+  name              String
+  site_aws_type     AwsType
+  concept           AwsConcept
+  location          String?
+  weighment_place   String?
+  ftp_image_prefix  String?
+
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @updatedAt  @default(now())
+
+  organization_id    Int
+  organization       Organization @relation(fields: [organization_id], references: [id])
+
+  users    UserSite[]
+  other_details   SiteMetaData?
+  groups SiteGroups[]
+  mega_trips MegaTrip[]
+  micro_trips MicroTrip[]
+  devices   Devices[]
+  @@unique([name, organization_id])
+}
+
+
+model SiteGroups {
+  id              Int   @id @default(autoincrement())
+  site_id       Int
+  group_id    Int
+  subgroup_id Int
+
+  site    Site    @relation(fields: [site_id], references: [id])
+@@unique([site_id,group_id,subgroup_id])
 }
 
 model SiteMetaData {
@@ -151,50 +201,22 @@ model SiteMetaData {
   site Site @relation(fields: [site_id], references: [id])
 }
 
-model SiteImage {
-  id                Int    @id @default(autoincrement())
-  site_id           Int
-  image_path        String
-
-  site Site @relation(fields: [site_id], references: [id])
-}
 
 
-model SiteConfigFile {
-  id            Int     @id @default(autoincrement())
-  site_id       Int     @unique
-  path          String
 
-  site          Site    @relation(fields: [site_id], references: [id])
-}
 
-model Group {
-  id              Int      @id @default(autoincrement())
-  name            String
-  organization_id  Int
 
-  organization     Organization @relation(fields: [organization_id], references: [id])
-  subgroups       SubGroup[]
 
-  @@unique([name, organization_id])
-}
-model SubGroup {
-  id       Int @id @default(autoincrement())
-  name     String
-  group_id Int
 
-  group    Group @relation(fields: [group_id], references: [id])
-
-  vehicles  VehicleGroup[]
-
-  @@unique([name, group_id])
-}
+//RF ENTRY VEHICLES
 model Vehicle {
   id          Int     @id @default(autoincrement())
   rf_id       String  @unique
   imei        String  @unique
-  vehicle_no  String
+  vehicle_no  String  @unique
 
+  created_at      DateTime            @default(now())
+  updated_at      DateTime            @updatedAt  @default(now())
   organizations VehicleOrganization[]
   mega_trips   MegaTrip[]
   micro_trips  MicroTrip[]
@@ -205,12 +227,13 @@ model VehicleGroup {
   id          Int @id @default(autoincrement())
 
   vehicle_id  Int
+  group_id    Int
   subgroup_id Int
 
   vehicle     Vehicle  @relation(fields:[vehicle_id], references:[id])
   subgroup    SubGroup @relation(fields:[subgroup_id], references:[id])
 
-  @@unique([vehicle_id, subgroup_id])
+  @@unique([vehicle_id, group_id,subgroup_id])
 }
 
 model VehicleOrganization {
@@ -224,6 +247,24 @@ model VehicleOrganization {
   @@unique([vehicle_id, organization_id])
 }
 
+
+
+model UserReport {
+  id        Int @id @default(autoincrement())
+
+  user_id   Int
+  organization_id Int
+  report_keys Json?
+
+  user      User   @relation(fields: [user_id], references: [id])
+  
+
+  @@unique([user_id, organization_id])
+}
+
+
+
+//DEVICE MODULE
 model Devices {
   id              Int     @id @default(autoincrement())
   uuid            String     @unique
@@ -238,6 +279,7 @@ model Devices {
   organization    Organization @relation(fields: [organization_id], references: [id])
 }
 
+//LOG MODULE
 model MegaLog {
   id          BigInt   @id @default(autoincrement())
   received_at DateTime
@@ -333,6 +375,3 @@ model MicroReading {
   image4   String?
 }
 
-model Reports {
-  id        Int       @id @default(autoincrement())
-}
